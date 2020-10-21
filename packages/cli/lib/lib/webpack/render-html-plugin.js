@@ -15,7 +15,7 @@ function read(path) {
 	return readFileSync(resolve(__dirname, path), 'utf-8');
 }
 
-module.exports = async function(config) {
+module.exports = async function (config) {
 	const { cwd, dest, isProd, src } = config;
 	const inProjectTemplatePath = resolve(src, 'template.html');
 	let template = defaultTemplate;
@@ -33,6 +33,7 @@ module.exports = async function(config) {
 
 	let content = read(template);
 	if (/preact\.headEnd|preact\.bodyEnd/.test(content)) {
+		const ampHead = read('../../resources/amp.ejs');
 		const headEnd = read('../../resources/head-end.ejs');
 		const bodyEnd = read('../../resources/body-end.ejs');
 		content = content
@@ -40,6 +41,7 @@ module.exports = async function(config) {
 				/<%[=]?\s+preact\.title\s+%>/,
 				'<%= htmlWebpackPlugin.options.title %>'
 			)
+			.replace(/<%\s+preact\.amp\s+%>/, ampHead)
 			.replace(/<%\s+preact\.headEnd\s+%>/, headEnd)
 			.replace(/<%\s+preact\.bodyEnd\s+%>/, bodyEnd);
 
@@ -53,7 +55,7 @@ module.exports = async function(config) {
 		writeFileSync(template, content);
 	}
 
-	const htmlWebpackConfig = values => {
+	const htmlWebpackConfig = (values) => {
 		const { url, title, ...routeData } = values;
 		return Object.assign(values, {
 			filename: resolve(dest, url.substring(1), 'index.html'),
@@ -93,7 +95,7 @@ module.exports = async function(config) {
 				return config.prerender ? prerender({ cwd, dest, src }, values) : '';
 			},
 			scriptLoading: 'defer',
-			CLI_DATA: { preRenderData: { url, ...routeData } }
+			CLI_DATA: { preRenderData: { url, ...routeData } },
 		});
 	};
 
@@ -140,9 +142,9 @@ module.exports = async function(config) {
 
 	return pages
 		.map(htmlWebpackConfig)
-		.map(conf => new HtmlWebpackPlugin(conf))
+		.map((conf) => new HtmlWebpackPlugin(conf))
 		.concat([new HtmlWebpackExcludeAssetsPlugin()])
-		.concat([...pages.map(page => new PrerenderDataExtractPlugin(page))]);
+		.concat([...pages.map((page) => new PrerenderDataExtractPlugin(page))]);
 };
 
 // Adds a preact_prerender_data in every folder so that the data could be fetched separately.
@@ -154,7 +156,7 @@ class PrerenderDataExtractPlugin {
 		this.data_ = JSON.stringify(cliData.preRenderData || {});
 	}
 	apply(compiler) {
-		compiler.hooks.emit.tap('PrerenderDataExtractPlugin', compilation => {
+		compiler.hooks.emit.tap('PrerenderDataExtractPlugin', (compilation) => {
 			let path = this.location_ + PRERENDER_DATA_FILE_NAME;
 			if (path.startsWith('/')) {
 				path = path.substr(1);

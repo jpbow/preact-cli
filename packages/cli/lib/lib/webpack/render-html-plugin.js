@@ -33,7 +33,6 @@ module.exports = async function (config) {
 
 	let content = read(template);
 	if (/preact\.headEnd|preact\.bodyEnd/.test(content)) {
-		const ampHead = read('../../resources/amp.ejs');
 		const headEnd = read('../../resources/head-end.ejs');
 		const bodyEnd = read('../../resources/body-end.ejs');
 		content = content
@@ -41,7 +40,6 @@ module.exports = async function (config) {
 				/<%[=]?\s+preact\.title\s+%>/,
 				'<%= htmlWebpackPlugin.options.title %>'
 			)
-			.replace(/<%\s+preact\.amp\s+%>/, ampHead)
 			.replace(/<%\s+preact\.headEnd\s+%>/, headEnd)
 			.replace(/<%\s+preact\.bodyEnd\s+%>/, bodyEnd);
 
@@ -58,7 +56,7 @@ module.exports = async function (config) {
 	const htmlWebpackConfig = (values) => {
 		const { url, title, ...routeData } = values;
 		return Object.assign(values, {
-			filename: resolve(dest, url.substring(1), 'index.html'),
+			filename: resolve(dest, url.substring(1), values.amp ? 'index.amp.html' : 'index.html'),
 			template: `!!ejs-loader!${template}`,
 			minify: isProd && {
 				collapseWhitespace: true,
@@ -140,11 +138,23 @@ module.exports = async function (config) {
 		}
 	}
 
-	return pages
+	const pages2 = [];
+	pages.forEach(page => {
+		const { amp, ...pageWithoutAmpProp } = page;
+
+		// Only support hybrid AMP pages to start
+		if (amp === "hybrid") {
+			pages2.push(page, { ...pageWithoutAmpProp, ampUrl: `${pageWithoutAmpProp.url}/index.amp` });
+		} else {
+			pages2.push(pageWithoutAmpProp);
+		}
+	});
+
+	return pages2
 		.map(htmlWebpackConfig)
 		.map((conf) => new HtmlWebpackPlugin(conf))
 		.concat([new HtmlWebpackExcludeAssetsPlugin()])
-		.concat([...pages.map((page) => new PrerenderDataExtractPlugin(page))]);
+		.concat([...pages2.map((page) => new PrerenderDataExtractPlugin(page))]);
 };
 
 // Adds a preact_prerender_data in every folder so that the data could be fetched separately.
